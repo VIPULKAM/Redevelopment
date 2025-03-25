@@ -1,5 +1,6 @@
 import streamlit as st
 import matplotlib.pyplot as plt
+from visitor_counter import display_visitor_counter
 
 # ======================
 # Road Width Based FSI Rules for Mumbai
@@ -523,6 +524,9 @@ st.set_page_config(
     page_icon="🏢",
     layout="wide"
 )
+
+# Initialize visitor counter (no parameters needed as they're included in the module)
+display_visitor_counter()
 
 # Add title and description
 st.title("Redevelopment Financial Calculator")
