@@ -2,6 +2,17 @@ import streamlit as st
 import matplotlib.pyplot as plt
 from visitor_counter import display_visitor_counter
 
+
+# Set page configuration
+st.set_page_config(
+    page_title="Redevelopment Financial Calculator",
+    page_icon="🏢",
+    layout="wide"
+)
+
+# calling visitor counter at beggining of code 
+display_visitor_counter()
+
 # ======================
 # Road Width Based FSI Rules for Mumbai
 # ======================
@@ -518,15 +529,9 @@ def get_ancillary_input(region):
 # Streamlit App
 # ----------------------------------------------------
 
-# Set page configuration
-st.set_page_config(
-    page_title="Redevelopment Financial Calculator",
-    page_icon="🏢",
-    layout="wide"
-)
 
 # Initialize visitor counter (no parameters needed as they're included in the module)
-display_visitor_counter()
+# display_visitor_counter()
 
 # Add title and description
 st.title("Redevelopment Financial Calculator")
