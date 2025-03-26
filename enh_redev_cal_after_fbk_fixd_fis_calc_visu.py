@@ -39,7 +39,183 @@ TDR_CONFIG = {
     "Mumbai": {
         "types": {
             "Road TDR": {
-                "fsi_multiplier": 1.0,
+            
+            # Add a download button for the report
+            report_text = f"""
+REDEVELOPMENT PROJECT ANALYSIS
+==================================================
+
+PROJECT BASICS:
+--------------
+Region: {results['region']}
+Project Type: {results['project_type']}
+Redevelopment Type: {'Self-Redevelopment' if results['is_self_redevelopment'] else 'Builder Redevelopment'}
+
+LAND & AREA DETAILS:
+------------------
+Land Area: {format_area(results['land_area'], 'Guntha' if REGION_CONFIG[region]['uses_guntha'] else 'sqm')} 
+          ({format_area(results['land_area_sqm'], 'sqm')})
+{"Road Width: " + str(results['road_width']) + " meters" if results['road_width'] is not None else ""}
+Base FSI: {results['base_fsi']}
+TDR Percentage: {results['tdr_percentage']:.1f}%
+TDR Bonus to FSI: {results['effective_fsi'] - results['base_fsi']:.2f}
+Effective FSI with TDR: {results['effective_fsi']:.2f}
+
+{"Fungible FSI: " + str(results['fungible_fsi'] * 100) + "%" if REGION_CONFIG[region]['has_fungible'] else "Ancillary FSI: " + str(results['ancillary_fsi'] * 100) + "%"}
+{"Fungible FSI Area Factor: " + str(results['fungible_area_factor']) if REGION_CONFIG[region]['has_fungible'] else "Ancillary FSI Area Factor: " + str(results['ancillary_area_factor'])}
+Total Effective FSI: {results['total_effective_fsi']:.2f}
+
+Current Carpet Area: {format_area(results['total_current_carpet_area'])}
+Offered Carpet Area: {format_area(results['total_offered_carpet_area'])}
+Total Buildable Area: {format_area(results['total_buildable_area_sqft'])}
+Green Building Bonus: {format_area(results['green_bonus'])}
+Self-Redevelopment Bonus: {format_area(results['self_redev_bonus'])}
+Total Area with Bonuses: {format_area(results['total_final_area'])}
+
+
+PREMIUM & TDR CALCULATION:
+-----------------
+Ready Reckoner Rate: {format_currency(results['ready_reckoner_rate'])}/sqm
+{"Fungible FSI Factor: " + str(results['fungible_fsi']) if REGION_CONFIG[region]['has_fungible'] else "Ancillary FSI Factor: " + str(results['ancillary_fsi'])}
+Premium Cost: {format_currency(results['premium_cost'])}
+TDR Cost: {format_currency(results['tdr_cost'])}
+
+COST ANALYSIS:
+------------
+Premium Cost: {format_currency(results['premium_cost'])}
+TDR Cost: {format_currency(results['tdr_cost'])}
+Construction Cost: {format_currency(results['construction_cost'])} ({format_currency(results['construction_cost_per_sqft'])}/sqft)
+GST Cost (5% on construction): {format_currency(results['gst_cost'])}
+Stamp Duty Cost: {format_currency(results['stamp_duty_cost'])}
+Rent Cost: {format_currency(results['rent_cost'])}
+Relocation Cost: {format_currency(results['relocation_cost'])}
+Bank Interest: {format_currency(results['bank_interest'])}
+TOTAL PROJECT COST: {format_currency(results['total_cost'])}
+
+REVENUE & {"PROFIT" if is_profitable else "LOSS"}:
+--------------
+Market Rate: {format_currency(results['market_rate_per_sqft'])}/sqft
+Project Value: {format_currency(results['project_value'])}
+TOTAL {"PROFIT" if is_profitable else "LOSS"}: {format_currency(abs(results['total_profit']))}
+
+{"PROFIT" if is_profitable else "LOSS"} DISTRIBUTION:
+-----------------
+{"Society's " + ("Profit" if results['society_profit'] >= 0 else "Loss") + ": " + format_currency(abs(results['society_profit']))}
+{"Developer's " + ("Profit" if results['developer_profit'] >= 0 else "Loss") + " (100%): " + format_currency(abs(results['developer_profit'])) if not results['is_self_redevelopment'] else ""}
+{"Profit" if results['per_member_profit'] >= 0 else "Loss"} per Member: {format_currency(abs(results['per_member_profit']))}
+
+SALABLE FLATS:
+-----------
+Number of Potential Salable Flats: {results['num_salable_flats']:.1f}
+            """
+            
+            st.download_button(
+                label="Download Report as Text",
+                data=report_text,
+                file_name="redevelopment_report.txt",
+                mime="text/plain",
+
+
+# Scenario comparison tab
+with scenario_tab:
+    st.header("Scenario Comparison")
+    st.markdown("""
+    Coming soon! This feature will allow you to compare multiple redevelopment scenarios side by side.
+    """)
+            with viz_tab3:
+                # FSI composition visualization
+                fig3, ax3 = plt.subplots(figsize=(10, 6))
+                
+                # Create FSI breakdown
+                fsi_labels = ['Base FSI']
+                fsi_values = [results['base_fsi']]
+                fsi_colors = ['#3498db']  # Blue
+                
+                # Add TDR if present
+                tdr_value = results['effective_fsi'] - results['base_fsi']
+                if tdr_value > 0:
+                    fsi_labels.append('TDR Bonus')
+                    fsi_values.append(tdr_value)
+                    fsi_colors.append('#2ecc71')  # Green
+                
+                # Add Fungible/Ancillary if present
+                if REGION_CONFIG[region]["has_fungible"] and results['fungible_area_factor'] > 0:
+                    fsi_labels.append('Fungible FSI')
+                    fsi_values.append(results['fungible_area_factor'])
+                    fsi_colors.append('#e74c3c')  # Red
+                elif not REGION_CONFIG[region]["has_fungible"] and results['ancillary_area_factor'] > 0:
+                    fsi_labels.append('Ancillary FSI')
+                    fsi_values.append(results['ancillary_area_factor'])
+                    fsi_colors.append('#f39c12')  # Orange
+                
+                ax3.bar(fsi_labels, fsi_values, color=fsi_colors)
+                ax3.set_ylabel('FSI Value')
+                ax3.set_title('FSI Composition')
+                
+                # Add a line for total effective FSI
+                ax3.axhline(y=results['total_effective_fsi'], color='r', linestyle='-', label=f'Total Effective FSI: {results["total_effective_fsi"]:.2f}')
+                ax3.legend()
+                
+                plt.tight_layout()
+                st.pyplot(fig3)
+            with viz_tab2:
+                # Profit and area allocation
+                fig2, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
+                
+                # Area allocation
+                area_labels = ['Society Area', 'Sellable Area']
+                area_values = [
+                    results['total_offered_carpet_area'],
+                    results['builder_sellable_area']
+                ]
+                ax1.bar(area_labels, area_values, color=['#3498db', '#2ecc71'])
+                ax1.set_ylabel('Square Feet')
+                ax1.set_title('Area Allocation')
+                
+                # Check if project is profitable or in loss
+                is_profitable = results['total_profit'] >= 0
+                
+                # For profit/loss distribution visualization
+                if is_profitable:
+                    if not results['is_self_redevelopment']:
+                        profit_labels = ['Developer Profit', 'Society Profit']
+                        profit_values = [
+                            max(0, results['developer_profit']),
+                            max(0, results['society_profit'])
+                        ]
+                        if all(v > 0 for v in profit_values):
+                            ax2.pie(profit_values, labels=profit_labels, autopct='%1.1f%%', startangle=90, colors=['#e74c3c', '#3498db'])
+                            ax2.axis('equal')
+                            ax2.set_title('Profit Distribution')
+                        else:
+                            ax2.bar(profit_labels, profit_values, color=['#e74c3c', '#3498db'])
+                            ax2.set_ylabel('Profit Amount (₹)')
+                            ax2.set_title('Profit Distribution')
+                    else:
+                        ax2.bar(['Total Cost', 'Project Value'], 
+                               [results['total_cost'], results['project_value']], 
+                               color=['#e74c3c', '#3498db'])
+                        ax2.set_ylabel('Amount (₹)')
+                        ax2.set_title('Cost vs. Project Value')
+                else:
+                    if not results['is_self_redevelopment']:
+                        loss_labels = ['Developer Loss', 'Society Loss']
+                        loss_values = [
+                            abs(results['developer_profit']),
+                            abs(results['society_profit'])
+                        ]
+                        ax2.bar(loss_labels, loss_values, color=['#e74c3c', '#3498db'])
+                        ax2.set_ylabel('Loss Amount (₹)')
+                        ax2.set_title('Loss Distribution')
+                    else:
+                        ax2.bar(['Total Cost', 'Project Value'], 
+                               [results['total_cost'], results['project_value']], 
+                               color=['#e74c3c', '#3498db'])
+                        ax2.set_ylabel('Amount (₹)')
+                        ax2.set_title('Cost vs. Project Value (Loss Scenario)')
+                
+                plt.tight_layout()
+                st.pyplot(fig2)"fsi_multiplier": 1.0,
                 "cost_factor": 0.7,
                 "description": "Generated from road-widening projects",
                 "source": "MCGM",
@@ -306,6 +482,10 @@ REGION_CONFIG = {
     }
 }
 
+
+# ======================
+# Helper Functions
+# ======================
 def get_ready_reckoner_rate(region, year):
     """Get ready reckoner rate for region and year."""
     ready_reckoner_rates = {
@@ -318,6 +498,7 @@ def get_ready_reckoner_rate(region, year):
     }
     return ready_reckoner_rates.get(region, {}).get(year, 0)
 
+
 def get_fsi_based_on_road_width(region, project_type, road_width):
     """
     Returns FSI based on road width for the given region and project type.
@@ -327,6 +508,50 @@ def get_fsi_based_on_road_width(region, project_type, road_width):
             if min_width <= road_width < max_width:
                 return fsi
     return REGION_CONFIG[region]["fsi_rules"][project_type]
+
+
+def format_currency(amount):
+    """Format amount in Indian Rupees with commas."""
+    if amount >= 10000000:  # Convert to crores
+        return f"₹{amount/10000000:.2f} Cr (₹{amount:,.2f})"
+    elif amount >= 100000:  # Convert to lakhs
+        return f"₹{amount/100000:.2f} Lakh (₹{amount:,.2f})"
+    else:
+        return f"₹{amount:,.2f}"
+
+
+def format_area(area, unit="sqft"):
+    """Format area with commas and unit."""
+    return f"{area:,.2f} {unit}"
+
+
+def get_land_area_input(region):
+    """Conditional land area input based on region"""
+    if REGION_CONFIG[region]["uses_guntha"]:
+        return st.number_input("Land Area (Guntha)", min_value=0.1, value=10.0)
+    else:
+        return st.number_input("Land Area (Sq.m)", min_value=1.0, value=1000.0)
+
+
+def get_fungible_input(region):
+    """Show fungible FSI input only for Mumbai"""
+    if REGION_CONFIG[region]["has_fungible"]:
+        default = REGION_CONFIG[region]["premium_rates"]["fungible_fsi"] * 100
+        return st.number_input("Fungible FSI (%)", 
+                              min_value=0.0, max_value=40.0, 
+                              value=default,
+                              help="In Mumbai, this adds to the buildable area and incurs premium cost") / 100
+    return 0.0
+
+
+def get_ancillary_input(region):
+    """Ancillary FSI input for non-Mumbai regions"""
+    if not REGION_CONFIG[region]["has_fungible"]:
+        return st.number_input("Ancillary FSI (%)", 
+                              min_value=0.0, max_value=30.0,
+                              help="Percentage of FSI to purchase as ancillary, which adds to buildable area") / 100
+    return 0.0
+
 
 def calculate_profit(
         region,
@@ -372,19 +597,38 @@ def calculate_profit(
     # TDR Calculation
     tdr_cost = 0
     tdr_bonus = 0
-    if tdr_percentage > 0 and tdr_type:
-        tdr_settings = TDR_CONFIG.get(region, {}).get("types", {}).get(tdr_type, {})
-        if tdr_settings:
+    if tdr_percentage > 0:
+        if region == "Mumbai" and tdr_type:
+            # Mumbai-specific TDR calculation with different types
+            tdr_settings = TDR_CONFIG.get(region, {}).get("types", {}).get(tdr_type, {})
+            if tdr_settings:
+                base_tdr_area = land_area_sqm * (tdr_percentage/100)
+                tdr_bonus = base_tdr_area * tdr_settings["fsi_multiplier"]
+                
+                if tdr_market_rate is not None:
+                    tdr_rate = tdr_market_rate * tdr_settings["cost_factor"]
+                    tdr_cost = base_tdr_area * 10.764 * tdr_rate
+                else:
+                    tdr_cost = base_tdr_area * ready_reckoner_rate * tdr_settings["cost_factor"]
+        else:
+            # Standard TDR calculation for other regions
+            tdr_settings = TDR_CONFIG["default"]["types"]["Standard TDR"]
             base_tdr_area = land_area_sqm * (tdr_percentage/100)
-            tdr_bonus = base_tdr_area * tdr_settings["fsi_multiplier"]
             
-            if region == "Mumbai" and tdr_market_rate is not None:
-                tdr_rate = tdr_market_rate * tdr_settings["cost_factor"]
-                tdr_cost = base_tdr_area * 10.764 * tdr_rate
-            else:
-                tdr_cost = base_tdr_area * ready_reckoner_rate * tdr_settings["cost_factor"]
+            # Use region-specific TDR multiplier
+            tdr_multiplier = REGION_CONFIG[region]["fsi_rules"]["tdr_multiplier"]
+            tdr_bonus = base_tdr_area * tdr_settings["fsi_multiplier"] * tdr_multiplier
+            
+            # Calculate TDR cost based on ready reckoner rate and cost factor
+            tdr_cost_factor = tdr_settings["cost_factor"]
+            tdr_rate = ready_reckoner_rate * REGION_CONFIG[region]["tdr_rates"][project_type]
+            tdr_cost = base_tdr_area * tdr_rate * tdr_cost_factor
     
-    effective_fsi = base_fsi + (tdr_bonus / land_area_sqm if land_area_sqm > 0 else 0)
+    # Calculate effective FSI (base FSI + TDR)
+    if tdr_percentage > 0:
+        effective_fsi = base_fsi + (tdr_bonus / land_area_sqm if land_area_sqm > 0 else 0)
+    else:
+        effective_fsi = base_fsi
     
     # Calculate FSI components
     fungible_area_factor = base_fsi * fungible_fsi if REGION_CONFIG[region]["has_fungible"] and fungible_fsi > 0 else 0
@@ -476,45 +720,10 @@ def calculate_profit(
         "road_width": road_width if region == "Mumbai" and road_width else None
     }
 
-def format_currency(amount):
-    """Format amount in Indian Rupees with commas."""
-    if amount >= 10000000:  # Convert to crores
-        return f"₹{amount/10000000:.2f} Cr (₹{amount:,.2f})"
-    elif amount >= 100000:  # Convert to lakhs
-        return f"₹{amount/100000:.2f} Lakh (₹{amount:,.2f})"
-    else:
-        return f"₹{amount:,.2f}"
 
-def format_area(area, unit="sqft"):
-    """Format area with commas and unit."""
-    return f"{area:,.2f} {unit}"
-
-def get_land_area_input(region):
-    """Conditional land area input based on region"""
-    if REGION_CONFIG[region]["uses_guntha"]:
-        return st.number_input("Land Area (Guntha)", min_value=0.1, value=10.0)
-    else:
-        return st.number_input("Land Area (Sq.m)", min_value=1.0, value=1000.0)
-
-def get_fungible_input(region):
-    """Show fungible FSI input only for Mumbai"""
-    if REGION_CONFIG[region]["has_fungible"]:
-        default = REGION_CONFIG[region]["premium_rates"]["fungible_fsi"] * 100
-        return st.number_input("Fungible FSI (%)", 
-                              min_value=0.0, max_value=40.0, 
-                              value=default,
-                              help="In Mumbai, this adds to the buildable area and incurs premium cost") / 100
-    return 0.0
-
-def get_ancillary_input(region):
-    """Ancillary FSI input for non-Mumbai regions"""
-    if not REGION_CONFIG[region]["has_fungible"]:
-        return st.number_input("Ancillary FSI (%)", 
-                              min_value=0.0, max_value=30.0,
-                              help="Percentage of FSI to purchase as ancillary, which adds to buildable area") / 100
-    return 0.0
-
-# Streamlit App
+# ======================
+# Main Application UI
+# ======================
 st.title("Redevelopment Financial Calculator")
 st.markdown("""
     This calculator helps housing societies evaluate the financial aspects of redevelopment projects.
@@ -588,23 +797,25 @@ with main_tab:
         
         tdr_type = None
         tdr_market_rate = None
-        if region == "Mumbai" and tdr_percentage > 0:
-            tdr_type = st.selectbox(
-                "TDR Type",
-                options=REGION_CONFIG[region]["tdr_types_available"],
-                format_func=lambda x: f"{x} ({TDR_CONFIG['Mumbai']['types'][x]['description']})",
-                help="Select the type of TDR being utilized"
-            )
-            
-            tdr_market_rate = st.slider(
-                "Current TDR Market Rate (₹/sqft)",
-                min_value=TDR_CONFIG["Mumbai"]["min_rate"],
-                max_value=TDR_CONFIG["Mumbai"]["max_rate"],
-                value=TDR_CONFIG["Mumbai"]["market_rate"],
-                help="Adjust based on current market conditions"
-            )
-        else:
-            tdr_type = "Standard TDR"
+        if tdr_percentage > 0:
+            if region == "Mumbai":
+                tdr_type = st.selectbox(
+                    "TDR Type",
+                    options=REGION_CONFIG[region]["tdr_types_available"],
+                    format_func=lambda x: f"{x} ({TDR_CONFIG['Mumbai']['types'][x]['description']})",
+                    help="Select the type of TDR being utilized"
+                )
+                
+                tdr_market_rate = st.slider(
+                    "Current TDR Market Rate (₹/sqft)",
+                    min_value=TDR_CONFIG["Mumbai"]["min_rate"],
+                    max_value=TDR_CONFIG["Mumbai"]["max_rate"],
+                    value=TDR_CONFIG["Mumbai"]["market_rate"],
+                    help="Adjust based on current market conditions"
+                )
+            else:
+                tdr_type = "Standard TDR"
+                st.info(f"Using standard TDR with region-specific multiplier of {REGION_CONFIG[region]['fsi_rules']['tdr_multiplier']}x for {region}")
         
         # Conditional inputs for fungible vs ancillary FSI
         fungible_fsi = get_fungible_input(region)
@@ -675,62 +886,11 @@ with main_tab:
             - **Region**: {results['region']}
             - **Project Type**: {results['project_type']}
             - **Redevelopment Type**: {'Self-Redevelopment' if results['is_self_redevelopment'] else 'Builder Redevelopment'}
-            """)
-            
-            # Land and area details
-            st.subheader("LAND & AREA DETAILS")
-            
-            # Show different details based on region
-            if REGION_CONFIG[region]["uses_guntha"]:
-                land_area_text = f"**Land Area**: {format_area(results['land_area'], 'Guntha')} ({format_area(results['land_area_sqm'], 'sqm')})"
-            else:
-                land_area_text = f"**Land Area**: {format_area(results['land_area'], 'sqm')} ({format_area(results['land_area_sqm'], 'sqm')})"
-            
-            # Show road width for Mumbai
-            road_width_text = ""
-            if region == "Mumbai" and results['road_width'] is not None:
-                road_width_text = f"**Road Width**: {results['road_width']} meters"
-            
-            st.markdown(f"""
-            {land_area_text}
-            {road_width_text}
-            - **Base FSI**: {results['base_fsi']}
-            - **TDR Percentage**: {results['tdr_percentage']:.1f}%
-            - **TDR Bonus to FSI**: {results['effective_fsi'] - results['base_fsi']:.2f}
-            - **Effective FSI with TDR**: {results['effective_fsi']:.2f}
-            """)
-            
             if REGION_CONFIG[region]["has_fungible"]:
                 st.markdown(f"""
                 - **Fungible FSI**: {results['fungible_fsi'] * 100:.1f}%
                 - **Fungible FSI Area Factor**: {results['fungible_area_factor']:.2f}
-                """)
-            else:
-                st.markdown(f"""
-                - **Ancillary FSI**: {results['ancillary_fsi'] * 100:.1f}%
-                - **Ancillary FSI Area Factor**: {results['ancillary_area_factor']:.2f}
-                """)
-            
-            st.markdown(f"""
-            - **Total Effective FSI (Base + TDR + Fungible/Ancillary)**: {results['total_effective_fsi']:.2f}
-            - **Current Carpet Area**: {format_area(results['total_current_carpet_area'])}
-            - **Offered Carpet Area**: {format_area(results['total_offered_carpet_area'])}
-            - **Total Buildable Area**: {format_area(results['total_buildable_area_sqft'])}
-            - **Green Building Bonus**: {format_area(results['green_bonus'])}
-            - **Self-Redevelopment Bonus**: {format_area(results['self_redev_bonus'])}
-            - **Total Area with Bonuses**: {format_area(results['total_final_area'])}
-            - **Builder Sellable Area**: {format_area(results['builder_sellable_area'])}
-            """)
-            
-            # Premium calculation
-            st.subheader("PREMIUM & TDR CALCULATION")
-            
-            st.markdown(f"""
-            - **Ready Reckoner Rate**: {format_currency(results['ready_reckoner_rate'])}/sqm
-            - **Land Area**: {format_area(results['land_area_sqm'], 'sqm')}
-            """)
-            
-            if REGION_CONFIG[region]["has_fungible"]:
+                if REGION_CONFIG[region]["has_fungible"]:
                 premium_text = f"""
                 - **Fungible FSI Factor**: {results['fungible_fsi']:.2f} ({results['fungible_fsi'] * 100:.1f}%)
                 - **Premium Cost Formula**: Land Area × Ready Reckoner Rate × Fungible FSI Factor
@@ -745,21 +905,19 @@ with main_tab:
                 
             # Show TDR information
             if results.get('tdr_percentage', 0) > 0:
-                tdr_info = TDR_CONFIG.get(results['region'], {}).get('types', {}).get(results.get('tdr_type', ''), {})
-                if tdr_info:
-                    st.markdown(f"""
-                    ### TDR Analysis
-                    - **Type**: {results.get('tdr_type', 'N/A')}
-                    - **Source**: {tdr_info.get('source', 'N/A')}
-                    - **Applicable Zones**: {", ".join(tdr_info.get('usage_restrictions', ['All zones']))}
-                    - **FSI Multiplier**: {tdr_info.get('fsi_multiplier', 1.0)}x
-                    - **Cost Factor**: {tdr_info.get('cost_factor', 1.0)}x
-                    - **Total Bonus FSI Area**: {results.get('tdr_bonus_area', 0):.2f} sqm
-                    - **Total TDR Cost**: {format_currency(results.get('tdr_cost', 0))}
-                    """)
-                else:
-                    st.warning("No TDR configuration found for the selected type")
-            
+                if region == "Mumbai":
+                    tdr_info = TDR_CONFIG.get(results['region'], {}).get('types', {}).get(results.get('tdr_type', ''), {})
+                    if tdr_info:
+                        st.markdown(f"""
+                        ### TDR Analysis
+                        - **Type**: {results.get('tdr_type', 'N/A')}
+                        - **Source**: {tdr_info.get('source', 'N/A')}
+                        - **Applicable Zones**: {", ".join(tdr_info.get('usage_restrictions', ['All zones']))}
+                        - **FSI Multiplier**: {tdr_info.get('fsi_multiplier', 1.0)}x
+                        - **Cost Factor**: {tdr_info.get('cost_factor', 1.0)}x
+                        - **Total Bonus FSI Area**: {results.get('tdr_bonus_area', 0):.2f} sqm
+                        - **Total TDR Cost**: {format_currency(results.get('tdr_cost', 0))}
+                
             st.markdown(premium_text)
             
             # Cost analysis
@@ -774,18 +932,6 @@ with main_tab:
             - **Relocation Cost**: {format_currency(results['relocation_cost'])}
             - **Bank Interest**: {format_currency(results['bank_interest'])}
             - **TOTAL PROJECT COST**: {format_currency(results['total_cost'])}
-            """)
-            
-            # Revenue and profit/loss
-            is_profitable = results['total_profit'] >= 0
-            profit_loss_word = "PROFIT" if is_profitable else "LOSS"
-            
-            st.subheader(f"REVENUE & {profit_loss_word}")
-            st.markdown(f"""
-            - **Market Rate**: {format_currency(results['market_rate_per_sqft'])}/sqft
-            - **Project Value**: {format_currency(results['project_value'])}
-            - **TOTAL {profit_loss_word}**: {format_currency(abs(results['total_profit']))}
-            """)
             
             # Profit/Loss distribution
             st.subheader(f"{profit_loss_word} DISTRIBUTION")
@@ -797,24 +943,7 @@ with main_tab:
                 st.markdown(f"""
                 - **Society's {society_status}**: {format_currency(abs(results['society_profit']))}
                 - **{member_status} per Member**: {format_currency(abs(results['per_member_profit']))}
-                """)
-            else:
-                developer_status = "Profit" if results['developer_profit'] >= 0 else "Loss"
-                society_status = "Profit" if results['society_profit'] >= 0 else "Loss"
-                member_status = "Profit" if results['per_member_profit'] >= 0 else "Loss"
                 
-                st.markdown(f"""
-                - **Developer's {developer_status} (100%)**: {format_currency(abs(results['developer_profit']))}
-                - **Society's {society_status} (0%)**: {format_currency(abs(results['society_profit']))}
-                - **{member_status} per Member**: {format_currency(abs(results['per_member_profit']))}
-                """)
-                
-            # Salable flats
-            st.subheader("SALABLE FLATS")
-            st.markdown(f"""
-            - **Number of Potential Salable Flats**: {results['num_salable_flats']:.1f}
-            """)
-            
             # Visualization section
             st.subheader("Project Financial Visualization")
             
@@ -845,182 +974,94 @@ with main_tab:
                 ax1.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle
                 plt.title('Project Cost Breakdown')
                 st.pyplot(fig1)
+            else:
+                developer_status = "Profit" if results['developer_profit'] >= 0 else "Loss"
+                society_status = "Profit" if results['society_profit'] >= 0 else "Loss"
+                member_status = "Profit" if results['per_member_profit'] >= 0 else "Loss"
                 
-            with viz_tab2:
-                # Profit and area allocation
-                fig2, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
+                st.markdown(f"""
+                - **Developer's {developer_status} (100%)**: {format_currency(abs(results['developer_profit']))}
+                - **Society's {society_status} (0%)**: {format_currency(abs(results['society_profit']))}
+                - **{member_status} per Member**: {format_currency(abs(results['per_member_profit']))}
+                """)
                 
-                # Area allocation
-                area_labels = ['Society Area', 'Sellable Area']
-                area_values = [
-                    results['total_offered_carpet_area'],
-                    results['builder_sellable_area']
-                ]
-                ax1.bar(area_labels, area_values, color=['#3498db', '#2ecc71'])
-                ax1.set_ylabel('Square Feet')
-                ax1.set_title('Area Allocation')
-                
-                # Check if project is profitable or in loss
-                is_profitable = results['total_profit'] >= 0
-                
-                # For profit/loss distribution visualization
-                if is_profitable:
-                    if not results['is_self_redevelopment']:
-                        profit_labels = ['Developer Profit', 'Society Profit']
-                        profit_values = [
-                            max(0, results['developer_profit']),
-                            max(0, results['society_profit'])
-                        ]
-                        if all(v > 0 for v in profit_values):
-                            ax2.pie(profit_values, labels=profit_labels, autopct='%1.1f%%', startangle=90, colors=['#e74c3c', '#3498db'])
-                            ax2.axis('equal')
-                            ax2.set_title('Profit Distribution')
-                        else:
-                            ax2.bar(profit_labels, profit_values, color=['#e74c3c', '#3498db'])
-                            ax2.set_ylabel('Profit Amount (₹)')
-                            ax2.set_title('Profit Distribution')
+            # Salable flats
+            st.subheader("SALABLE FLATS")
+            st.markdown(f"""
+            - **Number of Potential Salable Flats**: {results['num_salable_flats']:.1f}
+            """)
+            
+            # Revenue and profit/loss
+            is_profitable = results['total_profit'] >= 0
+            profit_loss_word = "PROFIT" if is_profitable else "LOSS"
+            
+            st.subheader(f"REVENUE & {profit_loss_word}")
+            st.markdown(f"""
+            - **Market Rate**: {format_currency(results['market_rate_per_sqft'])}/sqft
+            - **Project Value**: {format_currency(results['project_value'])}
+            - **TOTAL {profit_loss_word}**: {format_currency(abs(results['total_profit']))}
+            """)
                     else:
-                        ax2.bar(['Total Cost', 'Project Value'], 
-                               [results['total_cost'], results['project_value']], 
-                               color=['#e74c3c', '#3498db'])
-                        ax2.set_ylabel('Amount (₹)')
-                        ax2.set_title('Cost vs. Project Value')
+                        st.warning("No TDR configuration found for the selected type")
                 else:
-                    if not results['is_self_redevelopment']:
-                        loss_labels = ['Developer Loss', 'Society Loss']
-                        loss_values = [
-                            abs(results['developer_profit']),
-                            abs(results['society_profit'])
-                        ]
-                        ax2.bar(loss_labels, loss_values, color=['#e74c3c', '#3498db'])
-                        ax2.set_ylabel('Loss Amount (₹)')
-                        ax2.set_title('Loss Distribution')
-                    else:
-                        ax2.bar(['Total Cost', 'Project Value'], 
-                               [results['total_cost'], results['project_value']], 
-                               color=['#e74c3c', '#3498db'])
-                        ax2.set_ylabel('Amount (₹)')
-                        ax2.set_title('Cost vs. Project Value (Loss Scenario)')
-                
-                plt.tight_layout()
-                st.pyplot(fig2)
-                
-            with viz_tab3:
-                # FSI composition visualization
-                fig3, ax3 = plt.subplots(figsize=(10, 6))
-                
-                # Create FSI breakdown
-                fsi_labels = ['Base FSI']
-                fsi_values = [results['base_fsi']]
-                fsi_colors = ['#3498db']  # Blue
-                
-                # Add TDR if present
-                tdr_value = results['effective_fsi'] - results['base_fsi']
-                if tdr_value > 0:
-                    fsi_labels.append('TDR Bonus')
-                    fsi_values.append(tdr_value)
-                    fsi_colors.append('#2ecc71')  # Green
-                
-                # Add Fungible/Ancillary if present
-                if REGION_CONFIG[region]["has_fungible"] and results['fungible_area_factor'] > 0:
-                    fsi_labels.append('Fungible FSI')
-                    fsi_values.append(results['fungible_area_factor'])
-                    fsi_colors.append('#e74c3c')  # Red
-                elif not REGION_CONFIG[region]["has_fungible"] and results['ancillary_area_factor'] > 0:
-                    fsi_labels.append('Ancillary FSI')
-                    fsi_values.append(results['ancillary_area_factor'])
-                    fsi_colors.append('#f39c12')  # Orange
-                
-                ax3.bar(fsi_labels, fsi_values, color=fsi_colors)
-                ax3.set_ylabel('FSI Value')
-                ax3.set_title('FSI Composition')
-                
-                # Add a line for total effective FSI
-                ax3.axhline(y=results['total_effective_fsi'], color='r', linestyle='-', label=f'Total Effective FSI: {results["total_effective_fsi"]:.2f}')
-                ax3.legend()
-                
-                plt.tight_layout()
-                st.pyplot(fig3)
+                    # For non-Mumbai regions, show standard TDR analysis
+                    tdr_multiplier = REGION_CONFIG[region]["fsi_rules"]["tdr_multiplier"]
+                    tdr_cost_factor = TDR_CONFIG["default"]["types"]["Standard TDR"]["cost_factor"]
+                    tdr_rate = results["ready_reckoner_rate"] * REGION_CONFIG[region]["tdr_rates"][project_type]
+                    
+                    st.markdown(f"""
+                    ### TDR Analysis
+                    - **Type**: Standard TDR
+                    - **Region Multiplier**: {tdr_multiplier}x
+                    - **Cost Factor**: {tdr_cost_factor}x
+                    - **TDR Rate**: {format_currency(tdr_rate)}/sqm
+                    - **Total Bonus FSI Area**: {results.get('tdr_bonus_area', 0):.2f} sqm
+                    - **Total TDR Cost**: {format_currency(results.get('tdr_cost', 0))}
+                    """)
+            else:
+                st.markdown(f"""
+                - **Ancillary FSI**: {results['ancillary_fsi'] * 100:.1f}%
+                - **Ancillary FSI Area Factor**: {results['ancillary_area_factor']:.2f}
+                """)
             
-            # Add a download button for the report
-            report_text = f"""
-REDEVELOPMENT PROJECT ANALYSIS
-==================================================
-
-PROJECT BASICS:
---------------
-Region: {results['region']}
-Project Type: {results['project_type']}
-Redevelopment Type: {'Self-Redevelopment' if results['is_self_redevelopment'] else 'Builder Redevelopment'}
-
-LAND & AREA DETAILS:
-------------------
-Land Area: {format_area(results['land_area'], 'Guntha' if REGION_CONFIG[region]['uses_guntha'] else 'sqm')} 
-          ({format_area(results['land_area_sqm'], 'sqm')})
-{"Road Width: " + str(results['road_width']) + " meters" if results['road_width'] is not None else ""}
-Base FSI: {results['base_fsi']}
-TDR Percentage: {results['tdr_percentage']:.1f}%
-TDR Bonus to FSI: {results['effective_fsi'] - results['base_fsi']:.2f}
-Effective FSI with TDR: {results['effective_fsi']:.2f}
-
-{"Fungible FSI: " + str(results['fungible_fsi'] * 100) + "%" if REGION_CONFIG[region]['has_fungible'] else "Ancillary FSI: " + str(results['ancillary_fsi'] * 100) + "%"}
-{"Fungible FSI Area Factor: " + str(results['fungible_area_factor']) if REGION_CONFIG[region]['has_fungible'] else "Ancillary FSI Area Factor: " + str(results['ancillary_area_factor'])}
-Total Effective FSI: {results['total_effective_fsi']:.2f}
-
-Current Carpet Area: {format_area(results['total_current_carpet_area'])}
-Offered Carpet Area: {format_area(results['total_offered_carpet_area'])}
-Total Buildable Area: {format_area(results['total_buildable_area_sqft'])}
-Green Building Bonus: {format_area(results['green_bonus'])}
-Self-Redevelopment Bonus: {format_area(results['self_redev_bonus'])}
-Total Area with Bonuses: {format_area(results['total_final_area'])}
-Builder Sellable Area: {format_area(results['builder_sellable_area'])}
-
-PREMIUM & TDR CALCULATION:
------------------
-Ready Reckoner Rate: {format_currency(results['ready_reckoner_rate'])}/sqm
-{"Fungible FSI Factor: " + str(results['fungible_fsi']) if REGION_CONFIG[region]['has_fungible'] else "Ancillary FSI Factor: " + str(results['ancillary_fsi'])}
-Premium Cost: {format_currency(results['premium_cost'])}
-TDR Cost: {format_currency(results['tdr_cost'])}
-
-COST ANALYSIS:
-------------
-Premium Cost: {format_currency(results['premium_cost'])}
-TDR Cost: {format_currency(results['tdr_cost'])}
-Construction Cost: {format_currency(results['construction_cost'])} ({format_currency(results['construction_cost_per_sqft'])}/sqft)
-GST Cost (5% on construction): {format_currency(results['gst_cost'])}
-Stamp Duty Cost: {format_currency(results['stamp_duty_cost'])}
-Rent Cost: {format_currency(results['rent_cost'])}
-Relocation Cost: {format_currency(results['relocation_cost'])}
-Bank Interest: {format_currency(results['bank_interest'])}
-TOTAL PROJECT COST: {format_currency(results['total_cost'])}
-
-REVENUE & {"PROFIT" if is_profitable else "LOSS"}:
---------------
-Market Rate: {format_currency(results['market_rate_per_sqft'])}/sqft
-Project Value: {format_currency(results['project_value'])}
-TOTAL {"PROFIT" if is_profitable else "LOSS"}: {format_currency(abs(results['total_profit']))}
-
-{"PROFIT" if is_profitable else "LOSS"} DISTRIBUTION:
------------------
-{"Society's " + ("Profit" if results['society_profit'] >= 0 else "Loss") + ": " + format_currency(abs(results['society_profit']))}
-{"Developer's " + ("Profit" if results['developer_profit'] >= 0 else "Loss") + " (100%): " + format_currency(abs(results['developer_profit'])) if not results['is_self_redevelopment'] else ""}
-{"Profit" if results['per_member_profit'] >= 0 else "Loss"} per Member: {format_currency(abs(results['per_member_profit']))}
-
-SALABLE FLATS:
------------
-Number of Potential Salable Flats: {results['num_salable_flats']:.1f}
-            """
+            st.markdown(f"""
+            - **Total Effective FSI (Base + TDR + Fungible/Ancillary)**: {results['total_effective_fsi']:.2f}
+            - **Current Carpet Area**: {format_area(results['total_current_carpet_area'])}
+            - **Offered Carpet Area**: {format_area(results['total_offered_carpet_area'])}
+            - **Total Buildable Area**: {format_area(results['total_buildable_area_sqft'])}
+            - **Green Building Bonus**: {format_area(results['green_bonus'])}
+            - **Self-Redevelopment Bonus**: {format_area(results['self_redev_bonus'])}
+            - **Total Area with Bonuses**: {format_area(results['total_final_area'])}
+            - **Builder Sellable Area**: {format_area(results['builder_sellable_area'])}
+            """)
             
-            st.download_button(
-                label="Download Report as Text",
-                data=report_text,
-                file_name="redevelopment_report.txt",
-                mime="text/plain",
-            )
-
-# Scenario comparison tab
-with scenario_tab:
-    st.header("Scenario Comparison")
-    st.markdown("""
-    Coming soon! This feature will allow you to compare multiple redevelopment scenarios side by side.
-    """)
+            # Premium calculation
+            st.subheader("PREMIUM & TDR CALCULATION")
+            
+            st.markdown(f"""
+            - **Ready Reckoner Rate**: {format_currency(results['ready_reckoner_rate'])}/sqm
+            - **Land Area**: {format_area(results['land_area_sqm'], 'sqm')}
+            """)
+            
+            # Land and area details
+            st.subheader("LAND & AREA DETAILS")
+            
+            # Show different details based on region
+            if REGION_CONFIG[region]["uses_guntha"]:
+                land_area_text = f"**Land Area**: {format_area(results['land_area'], 'Guntha')} ({format_area(results['land_area_sqm'], 'sqm')})"
+            else:
+                land_area_text = f"**Land Area**: {format_area(results['land_area'], 'sqm')} ({format_area(results['land_area_sqm'], 'sqm')})"
+            
+            # Show road width for Mumbai
+            road_width_text = ""
+            if region == "Mumbai" and results['road_width'] is not None:
+                road_width_text = f"**Road Width**: {results['road_width']} meters"
+            
+            st.markdown(f"""
+            {land_area_text}
+            {road_width_text}
+            - **Base FSI**: {results['base_fsi']}
+            - **TDR Percentage**: {results['tdr_percentage']:.1f}%
+            - **TDR Bonus to FSI**: {results['effective_fsi'] - results['base_fsi']:.2f}
+            - **Effective FSI with TDR**: {results['effective_fsi']:.2f}
+            """)
