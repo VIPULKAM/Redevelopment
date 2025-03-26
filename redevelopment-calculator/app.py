@@ -28,12 +28,13 @@ st.set_page_config(
 GA_TRACKING_ID = "G-04LKXXK1GN"  # Replace with your actual tracking ID
 google_analytics_js = f"""
 <!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id={G-04LKXXK1GN}"></script>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-S650KV1T6R"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
-  function gtag(){{dataLayer.push(arguments);}}
+  function gtag(){dataLayer.push(arguments);}
   gtag('js', new Date());
-  gtag('config', '{G-04LKXXK1GN}');
+
+  gtag('config', 'G-S650KV1T6R');
 </script>
 """
 
