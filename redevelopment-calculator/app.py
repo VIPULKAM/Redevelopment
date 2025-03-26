@@ -38,25 +38,25 @@ google_analytics_js = f"""
 </script>
 """
 
-#def cookie_consent():
-#    cookie_consent_key = "cookie_consent"
-#    
-#    if cookie_consent_key not in st.session_state:
-#        st.session_state[cookie_consent_key] = False
-#       
-#        col1, col2 = st.columns([3, 1])
-#        with col1:
-#            st.info("This site uses cookies to analyze traffic and enhance user experience.")
-#        with col2:
-#            if st.button("Accept Cookies"):
-#                st.session_state[cookie_consent_key] = True
-#                st.rerun()
-#    
-#    return st.session_state[cookie_consent_key]
+def cookie_consent():
+    cookie_consent_key = "cookie_consent"
+    
+    if cookie_consent_key not in st.session_state:
+        st.session_state[cookie_consent_key] = False
+       
+        col1, col2 = st.columns([3, 1])
+        with col1:
+            st.info("This site uses cookies to analyze traffic and enhance user experience.")
+        with col2:
+            if st.button("Accept Cookies"):
+                st.session_state[cookie_consent_key] = True
+                st.rerun()
+    
+    return st.session_state[cookie_consent_key]
 
 # Then use it to conditionally load GA:
-#if cookie_consent():
-st.markdown(google_analytics_js, unsafe_allow_html=True)
+if cookie_consent():
+    st.markdown(google_analytics_js, unsafe_allow_html=True)
 
 
 # Add Firebase visitor counter
