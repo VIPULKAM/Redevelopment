@@ -90,8 +90,6 @@ def validate_number(value, min_value=None, max_value=None, default=0):
     except (TypeError, ValueError):
         return default
 
-# Cache project parameters
-@st.cache_data
 def get_default_parameters(region):
     """Get default parameters for a region"""
     params = {
