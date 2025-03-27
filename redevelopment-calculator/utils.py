@@ -2,7 +2,7 @@
 # Contains utility functions for the application
 
 import streamlit as st
-from config import ROAD_WIDTH_FSI_RULES, REGION_CONFIG, READY_RECKONER_RATES
+from config import TDR_CONFIG, ROAD_WIDTH_FSI_RULES, REGION_CONFIG, READY_RECKONER_RATES
 
 @st.cache_data(ttl=3600 * 24)  # Cache for 24 hours
 def get_ready_reckoner_rate(region, year):
