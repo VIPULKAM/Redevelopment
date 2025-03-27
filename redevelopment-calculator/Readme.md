@@ -100,4 +100,4 @@ kadamvipul@gmail.com
 
 ---
 
-**Disclaimer**: This calculator is provided for informational purposes only. While we strive for accuracy, the results should not be considered as financial advice. Always consult with qualified professionals before making significant financial decisions regarding redevelopment projects. We are not liable for any consequences arising from use of this calculator website https://mh-redev-calc.streamlit.app/. By using this website you agrees to all the terms laid above!
+**Disclaimer**: This calculator is provided for informational and educational purposes only. While we strive for accuracy, the results should not be considered as financial advice. Always consult with qualified professionals before making significant financial decisions regarding redevelopment projects. We are not liable for any consequences arising from use of this calculator website https://mh-redev-calc.streamlit.app/. By using this website you agrees to all the terms laid above!
