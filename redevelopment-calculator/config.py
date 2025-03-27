@@ -58,7 +58,7 @@ TDR_CONFIG = {
         },
         "market_rate": 4500,
         "min_rate": 3000,
-        "max_rate": 25000,
+        "max_rate": 9000,
         "calculation_method": "market_driven"
     },
     "default": {
