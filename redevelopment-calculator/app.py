@@ -37,15 +37,6 @@ google_analytics_js = f"""
   gtag('config', 'G-S650KV1T6R');
 </script>
 """
-<!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-S650KV1T6R"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-
-  gtag('config', 'G-S650KV1T6R');
-</script>
 
 def cookie_consent():
     cookie_consent_key = "cookie_consent"
@@ -64,8 +55,8 @@ def cookie_consent():
     return st.session_state[cookie_consent_key]
 
 # Then use it to conditionally load GA:
-if cookie_consent():
-    st.markdown(google_analytics_js, unsafe_allow_html=True)
+#if cookie_consent():
+st.markdown(google_analytics_js, unsafe_allow_html=True)
 
 
 # Add Firebase visitor counter
