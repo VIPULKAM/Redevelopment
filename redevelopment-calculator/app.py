@@ -37,6 +37,15 @@ google_analytics_js = f"""
   gtag('config', 'G-S650KV1T6R');
 </script>
 """
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-S650KV1T6R"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-S650KV1T6R');
+</script>
 
 def cookie_consent():
     cookie_consent_key = "cookie_consent"
