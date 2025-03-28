@@ -1,7 +1,8 @@
 # File: main.py
 import streamlit as st
 import matplotlib.pyplot as plt
-from visitor_counter import display_visitor_counter
+#from visitor_counter import display_visitor_counter
+from visitor_analytics import display_visitor_counter
 
 # Import modules
 from config import ROAD_WIDTH_FSI_RULES, TDR_CONFIG, REGION_CONFIG
@@ -61,6 +62,24 @@ st.markdown(google_analytics_js, unsafe_allow_html=True)
 
 # Add Firebase visitor counter
 display_visitor_counter()
+
+# Footer with disclaimer function
+def add_footer_with_disclaimer():
+    # Add some space
+    st.markdown("<br><br>", unsafe_allow_html=True)
+    
+    # Add a subtle divider
+    st.markdown("---")
+    
+    # Create footer
+    with st.expander("📋 Terms of Use & Disclaimer"):
+        st.warning("""
+        **Disclaimer**: Results should not be considered as financial advice. Always consult with qualified professionals before making significant financial decisions regarding redevelopment projects. We are not liable for any consequences arising from use of this calculator website https://mh-redev-calc.streamlit.app/. 
+        
+        By using this website you agree to all the terms laid above!
+        """)
+    
+    st.markdown("<div style='text-align: center; color: gray; font-size: 0.8em;'>© 2025 Vipul Kadam. All rights reserved.</div>", unsafe_allow_html=True)
 
 # Initialize session state for parameter persistence
 if 'params' not in st.session_state:
@@ -426,6 +445,9 @@ def main():
         if st.button("Notify me when this feature is available", key="notify-feature"):
             track_event("User Interest", "Feature Interest", "Scenario Comparison")
             st.success("Thank you for your interest! We'll notify you when this feature becomes available.")
+
+    # Add the disclaimer footer
+    add_footer_with_disclaimer()
 
 if __name__ == "__main__":
     main()
