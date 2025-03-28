@@ -1,7 +1,6 @@
 # File: main.py
 import streamlit as st
 import matplotlib.pyplot as plt
-#from visitor_counter import display_visitor_counter
 from visitor_analytics import display_visitor_counter
 
 # Import modules

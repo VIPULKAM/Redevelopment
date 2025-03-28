@@ -2,9 +2,8 @@ import streamlit as st
 import requests
 import json
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 import pytz
-import hashlib
 from collections import Counter
 
 def get_visitor_data():
@@ -36,6 +35,33 @@ def get_visitor_count():
     except Exception as e:
         st.sidebar.error(f"Error getting visitor count: {e}")
         return 0
+
+def get_visitor_location():
+    """Get visitor's location based on IP address."""
+    try:
+        # Use a free IP geolocation API
+        response = requests.get("https://ipapi.co/json/", timeout=2)
+        if response.status_code == 200:
+            data = response.json()
+            return {
+                'country': data.get('country_name', 'Unknown'),
+                'region': data.get('region', 'Unknown'),
+                'city': data.get('city', 'Unknown'),
+                'latitude': data.get('latitude'),
+                'longitude': data.get('longitude')
+            }
+    except Exception as e:
+        # Silently fail and return default values
+        pass
+    
+    # Default return if API failed
+    return {
+        'country': 'Unknown',
+        'region': 'Unknown',
+        'city': 'Unknown',
+        'latitude': None,
+        'longitude': None
+    }
 
 def store_visit_with_metadata(metadata):
     """Store visit with metadata using Firebase REST API."""
@@ -79,48 +105,29 @@ def get_visitor_metadata():
         session_hash = str(hash(str(now_utc)))[:8]
         st.session_state['session_id'] = session_hash
     
-    # Create a metadata object
+    # Get location data if not already cached in this session
+    if 'location_data' not in st.session_state:
+        location = get_visitor_location()
+        st.session_state['location_data'] = location
+    else:
+        location = st.session_state['location_data']
+    
+    # Create a metadata object - directly include location fields rather than nesting
     metadata = {
         'timestamp': now_utc.isoformat(),
         'session_id': st.session_state['session_id'],
-        'visit_count': st.session_state.get('visit_count', 1)
+        'visit_count': st.session_state.get('visit_count', 1),
+        'country': location['country'],
+        'region': location['region'],
+        'city': location['city'],
+        'latitude': location['latitude'],
+        'longitude': location['longitude']
     }
     
     # Increment visit count for this session
     st.session_state['visit_count'] = st.session_state.get('visit_count', 1) + 1
     
     return metadata
-
-def display_visitor_counter():
-    """Display the visitor counter in the app with analytics capabilities."""
-    # Only count the visit once per session
-    if 'visitor_counted' not in st.session_state:
-        metadata = get_visitor_metadata()
-        visitor_count = store_visit_with_metadata(metadata)
-        st.session_state.visitor_counted = True
-        st.session_state.visitor_count = visitor_count
-    else:
-        visitor_count = st.session_state.visitor_count
-    
-    # Display the visitor count with some styling
-    st.sidebar.markdown("---")
-    if visitor_count is not None:
-        st.sidebar.markdown(f"👥 **Total Visitors**: {visitor_count}")
-        
-        # Add an admin toggle
-        with st.sidebar.expander("Admin Analytics", expanded=False):
-            admin_password = st.text_input("Password", type="password", key="admin_password")
-            
-            if admin_password == "analyzeme":  # Simple password protection
-                if st.button("View Visit Patterns"):
-                    analyze_visit_patterns()
-                if st.button("Reset Session"):
-                    for key in list(st.session_state.keys()):
-                        if key.startswith('visitor_') or key == 'session_id':
-                            del st.session_state[key]
-                    st.experimental_rerun()
-    else:
-        st.sidebar.markdown("👥 **Visitor Counter Unavailable**")
 
 def is_suspicious_timing(time_diffs, threshold=0.1):
     """
@@ -144,6 +151,7 @@ def is_suspicious_timing(time_diffs, threshold=0.1):
 
 def analyze_visit_patterns():
     """Analyze visitor patterns to detect bot-like behavior."""
+    # Force fresh data fetch
     visitor_data = get_visitor_data()
     
     if not visitor_data:
@@ -161,16 +169,31 @@ def analyze_visit_patterns():
             # Parse the timestamp
             visit_time = datetime.fromisoformat(metadata['timestamp'].replace('Z', '+00:00'))
             
-            # Extract session ID
+            # Extract session ID and location - handle both direct fields and nested location
             session_id = metadata.get('session_id', 'unknown')
+            
+            # Check for location information in the metadata
+            # First try direct fields (new format)
+            country = metadata.get('country', 'Unknown')
+            region = metadata.get('region', 'Unknown')
+            city = metadata.get('city', 'Unknown')
+            
+            # If not found, check for nested 'location' object (old format)
+            if country == 'Unknown' and 'location' in metadata and isinstance(metadata['location'], dict):
+                country = metadata['location'].get('country', 'Unknown')
+                region = metadata['location'].get('region', 'Unknown')
+                city = metadata['location'].get('city', 'Unknown')
             
             visits.append({
                 'key': key,
                 'timestamp': visit_time,
-                'session_id': session_id
+                'session_id': session_id,
+                'country': country,
+                'region': region,
+                'city': city
             })
         except Exception as e:
-            st.error(f"Error parsing visit data: {e}")
+            st.error(f"Error parsing visit data for key {key}: {str(e)}")
     
     if not visits:
         st.warning("No valid visit data found for analysis.")
@@ -210,13 +233,99 @@ def analyze_visit_patterns():
             'avg_diff': sum(time_diffs) / len(time_diffs) if time_diffs else 0,
             'visit_count': len(session_visits),
             'first_visit': session_visits[0]['timestamp'],
-            'last_visit': session_visits[-1]['timestamp']
+            'last_visit': session_visits[-1]['timestamp'],
+            'country': session_visits[0]['country'],
+            'region': session_visits[0]['region'],
+            'city': session_visits[0]['city']
         }
+    
+    # Get timestamps for recent visits
+    now = datetime.now(pytz.UTC)
+    recent_visits = []
+    for visit in visits:
+        # Check if the visit is within the last hour
+        if (now - visit['timestamp']).total_seconds() < 3600:
+            recent_visits.append(visit)
     
     # Display the analysis results
     st.subheader("Visit Pattern Analysis")
+    st.write(f"Last updated: {now.strftime('%Y-%m-%d %H:%M:%S UTC')}")
+    
+    # Debug information - this can help identify issues
+    st.write("**Debug Information:**")
+    st.write(f"""
+    - Total visits in database: {len(visitor_data)}
+    - Valid visits processed: {len(visits)}
+    - Visits with known country: {sum(1 for v in visits if v['country'] != 'Unknown')}
+    - Visits with unknown country: {sum(1 for v in visits if v['country'] == 'Unknown')}
+    """)
+    
+    # Recent activity
+    st.subheader("Recent Activity (Last Hour)")
+    if recent_visits:
+        st.write(f"Found {len(recent_visits)} visits in the last hour")
+        
+        # Group by session
+        recent_sessions = {}
+        for visit in recent_visits:
+            if visit['session_id'] not in recent_sessions:
+                recent_sessions[visit['session_id']] = []
+            recent_sessions[visit['session_id']].append(visit)
+        
+        st.write(f"From {len(recent_sessions)} unique sessions")
+        
+        # Check for suspicious patterns in recent visits
+        suspicious_recent = False
+        for session_id, session_visits in recent_sessions.items():
+            if len(session_visits) >= 3:
+                time_diffs = []
+                for i in range(1, len(session_visits)):
+                    diff = (session_visits[i]['timestamp'] - session_visits[i-1]['timestamp']).total_seconds()
+                    time_diffs.append(diff)
+                
+                if is_suspicious_timing(time_diffs):
+                    suspicious_recent = True
+                    break
+        
+        if suspicious_recent:
+            st.warning("⚠️ **Suspicious activity detected in the last hour!**")
+        else:
+            st.success("✅ Recent activity appears normal")
+    else:
+        st.write("No visits in the last hour")
+    
+    # Geographic analysis
+    st.subheader("Geographic Distribution")
+    
+    # Count visits by country and region
+    country_counts = Counter()
+    region_counts = Counter()
+    
+    for visit in visits:
+        if visit['country'] != 'Unknown':
+            country_counts[visit['country']] += 1
+            
+            if visit['region'] != 'Unknown':
+                region_counts[f"{visit['region']}, {visit['country']}"] += 1
+    
+    # Display countries
+    if country_counts:
+        st.write("**Top Countries:**")
+        for country, count in country_counts.most_common(10):
+            st.write(f"🌎 {country}: {count} visits ({round(count/len(visits)*100, 1)}%)")
+    else:
+        st.write("**No country data available**")
+    
+    # Display regions
+    if region_counts:
+        st.write("**Top Regions:**")
+        for region, count in region_counts.most_common(10):
+            st.write(f"📍 {region}: {count} visits")
+    else:
+        st.write("**No region data available**")
     
     # Summary statistics
+    st.subheader("Overall Statistics")
     total_visits = len(visits)
     unique_sessions = len(sessions)
     bot_sessions = sum(1 for s in session_analysis.values() if s['suspicious_timing'])
@@ -248,11 +357,22 @@ def analyze_visit_patterns():
             icon = "👤"
             status = "Normal"
         
+        # Get location info
+        location_str = ""
+        if analysis['city'] != 'Unknown' and analysis['country'] != 'Unknown':
+            location_str = f" from {analysis['city']}, {analysis['country']}"
+        elif analysis['country'] != 'Unknown':
+            location_str = f" from {analysis['country']}"
+        
         # Create an expander for this session
-        with st.expander(f"{icon} Session {session_id} - {status} ({analysis['visit_count']} visits)"):
+        with st.expander(f"{icon} Session {session_id} - {status}{location_str} ({analysis['visit_count']} visits)"):
             # Session details
             st.write(f"**First visit:** {analysis['first_visit'].strftime('%Y-%m-%d %H:%M:%S UTC')}")
             st.write(f"**Last visit:** {analysis['last_visit'].strftime('%Y-%m-%d %H:%M:%S UTC')}")
+            
+            # Location details
+            if analysis['country'] != 'Unknown':
+                st.write(f"**Location:** {analysis['city']}, {analysis['region']}, {analysis['country']}")
             
             # Timing analysis
             if analysis['time_diffs']:
@@ -293,10 +413,55 @@ def analyze_visit_patterns():
     # Check for suspicious hours with many visits
     suspicious_hours = []
     for hour, count in hour_counts.items():
-        if count > total_visits * 0.2:  # If more than 20% of visits are in one hour
+        if count > total_visits * 0.2 and count > 10:  # If more than 20% of visits are in one hour and at least 10 visits
             suspicious_hours.append((hour, count))
     
     if suspicious_hours:
         st.subheader("Potential Automated Traffic Hours")
         for hour, count in sorted(suspicious_hours, key=lambda x: x[1], reverse=True):
             st.write(f"⚠️ Hour {hour}:00 UTC has {count} visits ({round(count/total_visits*100, 1)}% of all traffic)")
+
+def display_visitor_counter():
+    """Display the visitor counter in the app with analytics capabilities."""
+    # Only count the visit once per session
+    if 'visitor_counted' not in st.session_state:
+        metadata = get_visitor_metadata()
+        visitor_count = store_visit_with_metadata(metadata)
+        st.session_state.visitor_counted = True
+        st.session_state.visitor_count = visitor_count
+    else:
+        visitor_count = st.session_state.visitor_count
+    
+    # Display the visitor count with some styling
+    st.sidebar.markdown("---")
+    if visitor_count is not None:
+        st.sidebar.markdown(f"👥 **Total Visitors**: {visitor_count}")
+        
+        # Add an admin toggle
+        with st.sidebar.expander("Admin Analytics", expanded=False):
+            admin_password = st.text_input("Password", type="password", key="admin_password")
+            
+            if admin_password == "analyzeme":  # Simple password protection
+                # Manual refresh button - prominently displayed
+                if st.button("🔄 Refresh Analytics Data", use_container_width=True):
+                    # Force a refresh by clearing any cached data
+                    st.rerun()
+                
+                # Reset session button - secondary action
+                if st.button("Reset Session", use_container_width=True):
+                    for key in list(st.session_state.keys()):
+                        if key.startswith('visitor_') or key == 'session_id' or key == 'location_data':
+                            del st.session_state[key]
+                    st.rerun()
+                
+                # Show the current time
+                current_time = datetime.now()
+                st.write(f"Current time: {current_time.strftime('%Y-%m-%d %H:%M:%S')}")
+                
+                # Info about manual refresh
+                st.info("📊 Analytics are not automatically refreshed. Use the 'Refresh Analytics Data' button to see the latest data.")
+                
+                # Always show the analysis when admin is logged in
+                analyze_visit_patterns()
+    else:
+        st.sidebar.markdown("👥 **Visitor Counter Unavailable**")
