@@ -97,16 +97,16 @@ def cached_calculate_profit(**kwargs):
     return calculate_profit(**kwargs)
 
 # Track a GA event (can be used for button clicks, etc.)
-def track_event(event_category, event_action, event_label=None):
-    js_code = f"""
-    <script>
-    gtag('event', '{event_action}', {{
-        'event_category': '{event_category}',
-        'event_label': '{event_label or "None"}'
-    }});
-    </script>
-    """
-    st.markdown(js_code, unsafe_allow_html=True)
+#def track_event(event_category, event_action, event_label=None):
+#    js_code = f"""
+#    <script>
+#    gtag('event', '{event_action}', {{
+#        'event_category': '{event_category}',
+#        'event_label': '{event_label or "None"}'
+#    }});
+#    </script>
+#    """
+#    st.markdown(js_code, unsafe_allow_html=True)
 
 # Main Application UI
 def main():
