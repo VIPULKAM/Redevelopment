@@ -79,7 +79,7 @@ def add_footer_with_disclaimer():
         By using this website you agree to all the terms laid above!
         """)
     
-    st.markdown("<div style='text-align: center; color: gray; font-size: 0.8em;'>© 2025 Vipul Kadam. All rights reserved.</div>", unsafe_allow_html=True)
+    st.markdown("<div style='text-align: center; color: gray; font-size: 0.8em;'>© 2025 @vipulkam. All rights reserved.</div>", unsafe_allow_html=True)
 
 # Initialize session state for parameter persistence
 if 'params' not in st.session_state:
